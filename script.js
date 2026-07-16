@@ -1,6 +1,12 @@
 "use strict";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
+
+const MODAL_TRANSITION_MS = 240;
+const STATUS_TRANSITION_MS = 220;
+
+const modalCloseTimers =
+  new WeakMap();
 
 const STORAGE_KEYS = {
   transactions: "cbgrid-transactions",
@@ -1279,6 +1285,26 @@ function escapeHTML(
   return div.innerHTML;
 }
 
+function prefersReducedMotion() {
+  return window
+    .matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    )
+    .matches;
+}
+
+function afterNextPaint(
+  callback
+) {
+  window.requestAnimationFrame(
+    () => {
+      window.requestAnimationFrame(
+        callback
+      );
+    }
+  );
+}
+
 function openModal(
   modal
 ) {
@@ -1288,25 +1314,81 @@ function openModal(
     return;
   }
 
+  window.clearTimeout(
+    modalCloseTimers.get(
+      modal
+    )
+  );
+
+  modalCloseTimers.delete(
+    modal
+  );
+
+  modal.classList.remove(
+    "is-closing"
+  );
+
+  modal.classList.add(
+    "is-opening"
+  );
+
   modal.classList.remove(
     "hidden"
   );
 
+  modal.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
   document.body.style.overflow =
     "hidden";
-}
 
-function closeModal(
-  modal
-) {
   if (
-    !modal
+    prefersReducedMotion()
   ) {
+    modal.classList.remove(
+      "is-opening"
+    );
+
     return;
   }
 
+  afterNextPaint(
+    () => {
+      if (
+        !modal.classList
+          .contains(
+            "is-closing"
+          )
+      ) {
+        modal.classList.remove(
+          "is-opening"
+        );
+      }
+    }
+  );
+}
+
+function finishModalClose(
+  modal
+) {
+  modal.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
   modal.classList.add(
     "hidden"
+  );
+
+  modal.classList.remove(
+    "is-opening",
+    "is-closing"
+  );
+
+  modalCloseTimers.delete(
+    modal
   );
 
   const openModalElement =
@@ -1320,6 +1402,125 @@ function closeModal(
     document.body.style.overflow =
       "";
   }
+}
+
+function closeModal(
+  modal
+) {
+  if (
+    !modal
+  ) {
+    return;
+  }
+
+  if (
+    modal.classList
+      .contains(
+        "hidden"
+      ) ||
+    modal.classList
+      .contains(
+        "is-closing"
+      )
+  ) {
+    return;
+  }
+
+  modal.classList.remove(
+    "is-opening"
+  );
+
+  modal.classList.add(
+    "is-closing"
+  );
+
+  if (
+    prefersReducedMotion()
+  ) {
+    finishModalClose(
+      modal
+    );
+
+    return;
+  }
+
+  const closeTimer =
+    window.setTimeout(
+      () => {
+        finishModalClose(
+          modal
+        );
+      },
+      MODAL_TRANSITION_MS
+    );
+
+  modalCloseTimers.set(
+    modal,
+    closeTimer
+  );
+}
+
+function finishStatusClose() {
+  elements.statusBanner
+    .classList.add(
+      "hidden"
+    );
+
+  elements.statusBanner
+    .classList.remove(
+      "is-opening",
+      "is-closing"
+    );
+
+  showStatus.hideTimerId =
+    null;
+}
+
+function hideStatus() {
+  window.clearTimeout(
+    showStatus.timeoutId
+  );
+
+  if (
+    elements.statusBanner
+      .classList.contains(
+        "hidden"
+      ) ||
+    elements.statusBanner
+      .classList.contains(
+        "is-closing"
+      )
+  ) {
+    return;
+  }
+
+  window.clearTimeout(
+    showStatus.hideTimerId
+  );
+
+  elements.statusBanner
+    .classList.remove(
+      "is-opening"
+    );
+
+  elements.statusBanner
+    .classList.add(
+      "is-closing"
+    );
+
+  if (
+    prefersReducedMotion()
+  ) {
+    finishStatusClose();
+
+    return;
+  }
+
+  showStatus.hideTimerId =
+    window.setTimeout(
+      finishStatusClose,
+      STATUS_TRANSITION_MS
+    );
 }
 
 function showStatus(
@@ -1336,10 +1537,49 @@ function showStatus(
     .textContent =
     message;
 
+  window.clearTimeout(
+    showStatus.hideTimerId
+  );
+
+  elements.statusBanner
+    .classList.remove(
+      "is-closing"
+    );
+
+  elements.statusBanner
+    .classList.add(
+      "is-opening"
+    );
+
   elements.statusBanner
     .classList.remove(
       "hidden"
     );
+
+  if (
+    prefersReducedMotion()
+  ) {
+    elements.statusBanner
+      .classList.remove(
+        "is-opening"
+      );
+  } else {
+    afterNextPaint(
+      () => {
+        if (
+          !elements.statusBanner
+            .classList.contains(
+              "is-closing"
+            )
+        ) {
+          elements.statusBanner
+            .classList.remove(
+              "is-opening"
+            );
+        }
+      }
+    );
+  }
 
   if (
     actionText &&
@@ -1378,15 +1618,511 @@ function showStatus(
   ) {
     showStatus.timeoutId =
       window.setTimeout(
-        () => {
-          elements.statusBanner
-            .classList.add(
-              "hidden"
-            );
-        },
+        hideStatus,
         4500
       );
   }
+}
+
+function debounce(
+  callback,
+  delay
+) {
+  let timeoutId =
+    null;
+
+  return (
+    ...args
+  ) => {
+    window.clearTimeout(
+      timeoutId
+    );
+
+    timeoutId =
+      window.setTimeout(
+        () => {
+          callback(
+            ...args
+          );
+        },
+        delay
+      );
+  };
+}
+
+function setupSmoothWheelScrolling() {
+  const finePointer =
+    window.matchMedia(
+      "(pointer: fine)"
+    ).matches;
+
+  if (
+    prefersReducedMotion() ||
+    !finePointer
+  ) {
+    return;
+  }
+
+  let currentY =
+    window.scrollY;
+
+  let targetY =
+    currentY;
+
+  let animationFrame =
+    null;
+
+  const syncScrollPosition =
+    () => {
+      currentY =
+        window.scrollY;
+
+      targetY =
+        currentY;
+    };
+
+  const stopAnimation =
+    () => {
+      if (
+        animationFrame !==
+          null
+      ) {
+        window.cancelAnimationFrame(
+          animationFrame
+        );
+
+        animationFrame =
+          null;
+      }
+
+      syncScrollPosition();
+    };
+
+  const animateScroll =
+    () => {
+      const distance =
+        targetY -
+        currentY;
+
+      currentY +=
+        distance *
+        0.2;
+
+      const scrollingElement =
+        document.scrollingElement ||
+        document.documentElement;
+
+      scrollingElement.scrollTop =
+        currentY;
+
+      if (
+        Math.abs(
+          distance
+        ) < 0.5
+      ) {
+        scrollingElement.scrollTop =
+          targetY;
+
+        currentY =
+          targetY;
+
+        animationFrame =
+          null;
+
+        return;
+      }
+
+      animationFrame =
+        window.requestAnimationFrame(
+          animateScroll
+        );
+    };
+
+  window.addEventListener(
+    "wheel",
+    event => {
+      const eventTarget =
+        event.target;
+
+      const isFormControl =
+        eventTarget instanceof
+          Element &&
+        Boolean(
+          eventTarget.closest(
+            "input, select, textarea, [contenteditable='true']"
+          )
+        );
+
+      const isModalScroll =
+        eventTarget instanceof
+          Element &&
+        Boolean(
+          eventTarget.closest(
+            ".modal-backdrop:not(.hidden)"
+          )
+        );
+
+      const isHorizontalGesture =
+        Math.abs(
+          event.deltaX
+        ) >
+        Math.abs(
+          event.deltaY
+        );
+
+      const isPrecisionGesture =
+        event.deltaMode ===
+          0 &&
+        Math.abs(
+          event.deltaY
+        ) < 12;
+
+      if (
+        event.ctrlKey ||
+        isFormControl ||
+        isModalScroll ||
+        isHorizontalGesture ||
+        isPrecisionGesture
+      ) {
+        return;
+      }
+
+      let wheelDistance =
+        event.deltaY;
+
+      if (
+        event.deltaMode ===
+        1
+      ) {
+        wheelDistance *=
+          40;
+      } else if (
+        event.deltaMode ===
+        2
+      ) {
+        wheelDistance *=
+          window.innerHeight *
+          0.85;
+      }
+
+      wheelDistance =
+        Math.max(
+          -180,
+          Math.min(
+            180,
+            wheelDistance
+          )
+        );
+
+      const maxScroll =
+        Math.max(
+          0,
+          document.documentElement
+            .scrollHeight -
+          window.innerHeight
+        );
+
+      if (
+        animationFrame ===
+          null
+      ) {
+        syncScrollPosition();
+      }
+
+      const nextTarget =
+        Math.max(
+          0,
+          Math.min(
+            maxScroll,
+            targetY +
+              wheelDistance
+          )
+        );
+
+      if (
+        nextTarget ===
+        targetY
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      targetY =
+        nextTarget;
+
+      if (
+        animationFrame ===
+          null
+      ) {
+        animationFrame =
+          window.requestAnimationFrame(
+            animateScroll
+          );
+      }
+    },
+    {
+      passive:
+        false
+    }
+  );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (
+        animationFrame ===
+          null
+      ) {
+        syncScrollPosition();
+      }
+    },
+    {
+      passive:
+        true
+    }
+  );
+
+  window.addEventListener(
+    "resize",
+    stopAnimation,
+    {
+      passive:
+        true
+    }
+  );
+
+  window.addEventListener(
+    "pointerdown",
+    stopAnimation,
+    {
+      passive:
+        true
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    event => {
+      const scrollKeys = [
+        "ArrowDown",
+        "ArrowUp",
+        "End",
+        "Home",
+        "PageDown",
+        "PageUp",
+        " "
+      ];
+
+      if (
+        scrollKeys.includes(
+          event.key
+        )
+      ) {
+        stopAnimation();
+      }
+    }
+  );
+}
+
+function setupNavigationState() {
+  const navLinks = [
+    ...document.querySelectorAll(
+      ".nav-link[href^='#']"
+    )
+  ];
+
+  const sectionLinks =
+    navLinks
+      .map(
+        link => {
+          const target =
+            document.querySelector(
+              link.getAttribute(
+                "href"
+              )
+            );
+
+          return target
+            ? {
+                link,
+                target
+              }
+            : null;
+        }
+      )
+      .filter(
+        Boolean
+      );
+
+  if (
+    sectionLinks.length ===
+    0
+  ) {
+    return;
+  }
+
+  let activeLink =
+    navLinks.find(
+      link =>
+        link.classList
+          .contains(
+            "active"
+          )
+    ) ||
+    navLinks[0];
+
+  let updateFrame =
+    null;
+
+  const setActiveLink =
+    link => {
+      if (
+        !link
+      ) {
+        return;
+      }
+
+      activeLink =
+        link;
+
+      navLinks.forEach(
+        navLink => {
+          const isActive =
+            navLink ===
+            link;
+
+          navLink.classList.toggle(
+            "active",
+            isActive
+          );
+
+          if (
+            isActive
+          ) {
+            navLink.setAttribute(
+              "aria-current",
+              "location"
+            );
+          } else {
+            navLink.removeAttribute(
+              "aria-current"
+            );
+          }
+        }
+      );
+    };
+
+  const updateActiveLink =
+    () => {
+      updateFrame =
+        null;
+
+      const marker =
+        window.scrollY +
+        Math.min(
+          window.innerHeight *
+            0.28,
+          220
+        );
+
+      const sortedSections =
+        sectionLinks
+          .map(
+            item => ({
+              ...item,
+              top:
+                item.target
+                  .getBoundingClientRect()
+                  .top +
+                window.scrollY
+            })
+          )
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              first.top -
+              second.top
+          );
+
+      let candidate =
+        sortedSections[0];
+
+      sortedSections.forEach(
+        item => {
+          if (
+            item.top >
+            marker
+          ) {
+            return;
+          }
+
+          const sameRow =
+            Math.abs(
+              item.top -
+              candidate.top
+            ) < 8;
+
+          if (
+            !sameRow ||
+            item.link ===
+              activeLink
+          ) {
+            candidate =
+              item;
+          }
+        }
+      );
+
+      setActiveLink(
+        candidate.link
+      );
+    };
+
+  navLinks.forEach(
+    link => {
+      link.addEventListener(
+        "click",
+        () => {
+          setActiveLink(
+            link
+          );
+        }
+      );
+    }
+  );
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (
+        updateFrame ===
+          null
+      ) {
+        updateFrame =
+          window.requestAnimationFrame(
+            updateActiveLink
+          );
+      }
+    },
+    {
+      passive:
+        true
+    }
+  );
+
+  window.addEventListener(
+    "resize",
+    updateActiveLink,
+    {
+      passive:
+        true
+    }
+  );
+
+  updateActiveLink();
 }
 
 function populateCategorySelects() {
@@ -2577,9 +3313,8 @@ function renderTransactions() {
   const filteredTransactions =
     getFilteredTransactions();
 
-  elements.transactionList
-    .innerHTML =
-    "";
+  const fragment =
+    document.createDocumentFragment();
 
   elements.transactionEmpty
     .classList.toggle(
@@ -2652,6 +3387,9 @@ function renderTransactions() {
 
         item.className =
           "transaction-item";
+
+        item.dataset.transactionId =
+          transaction.id;
 
         item.innerHTML = `
           <div
@@ -2730,46 +3468,66 @@ function renderTransactions() {
           </div>
         `;
 
-        elements.transactionList
-          .appendChild(
-            item
-          );
-      }
-    );
-
-  elements.transactionList
-    .querySelectorAll(
-      ".edit-button"
-    )
-    .forEach(
-      button => {
-        button.addEventListener(
-          "click",
-          () => {
-            openEditTransactionModal(
-              button.dataset.id
-            );
-          }
+        fragment.appendChild(
+          item
         );
       }
     );
 
   elements.transactionList
-    .querySelectorAll(
-      ".delete-button"
-    )
-    .forEach(
-      button => {
-        button.addEventListener(
-          "click",
-          () => {
-            deleteTransaction(
-              button.dataset.id
-            );
-          }
-        );
-      }
+    .replaceChildren(
+      fragment
     );
+}
+
+function handleTransactionListClick(
+  event
+) {
+  if (
+    !(event.target instanceof
+      Element)
+  ) {
+    return;
+  }
+
+  const button =
+    event.target.closest(
+      "button[data-id]"
+    );
+
+  if (
+    !button ||
+    !elements.transactionList
+      .contains(
+        button
+      )
+  ) {
+    return;
+  }
+
+  if (
+    button.classList
+      .contains(
+        "edit-button"
+      )
+  ) {
+    openEditTransactionModal(
+      button.dataset.id
+    );
+
+    return;
+  }
+
+  if (
+    button.classList
+      .contains(
+        "delete-button"
+      )
+  ) {
+    deleteTransaction(
+      button.dataset.id
+    );
+  }
 }
 
 function renderSummary() {
@@ -5195,10 +5953,19 @@ elements.makeRecurring
     }
   );
 
+elements.transactionList
+  .addEventListener(
+    "click",
+    handleTransactionListClick
+  );
+
 elements.search
   .addEventListener(
     "input",
-    renderTransactions
+    debounce(
+      renderTransactions,
+      120
+    )
   );
 
 elements.typeFilter
@@ -5339,12 +6106,7 @@ elements.resetAll
 elements.statusClose
   .addEventListener(
     "click",
-    () => {
-      elements.statusBanner
-        .classList.add(
-          "hidden"
-        );
-    }
+    hideStatus
   );
 
 [
@@ -5413,3 +6175,5 @@ renderDashboard();
 registerServiceWorker();
 setupInstallPrompt();
 setupConnectivityStatus();
+setupSmoothWheelScrolling();
+setupNavigationState();
