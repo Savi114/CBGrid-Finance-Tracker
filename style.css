@@ -41,10 +41,25 @@
   --radius-large: 22px;
   --radius-medium: 15px;
   --radius-small: 12px;
+
+  --motion-fast: 140ms;
+  --motion-medium: 220ms;
+  --motion-slow: 360ms;
+  --motion-ease:
+    cubic-bezier(
+      0.22,
+      1,
+      0.36,
+      1
+    );
 }
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 24px;
+
+  scrollbar-gutter:
+    stable;
 }
 
 body {
@@ -121,6 +136,17 @@ select {
 
 button {
   -webkit-tap-highlight-color: transparent;
+
+  touch-action:
+    manipulation;
+}
+
+button:disabled {
+  cursor:
+    not-allowed;
+
+  opacity:
+    0.62;
 }
 
 input,
@@ -219,26 +245,30 @@ a:focus-visible {
   transform:
     translateX(-50%);
 
-  animation:
-    banner-in 0.2s ease;
+  opacity:
+    1;
+
+  transition:
+    opacity
+      var(--motion-medium)
+      var(--motion-ease),
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
-@keyframes banner-in {
-  from {
-    opacity: 0;
+.status-banner.is-opening,
+.status-banner.is-closing {
+  opacity:
+    0;
 
-    transform:
-      translateX(-50%)
-      translateY(-10px);
-  }
+  transform:
+    translateX(-50%)
+    translateY(-12px)
+    scale(0.98);
 
-  to {
-    opacity: 1;
-
-    transform:
-      translateX(-50%)
-      translateY(0);
-  }
+  pointer-events:
+    none;
 }
 
 .status-banner > span {
@@ -439,9 +469,15 @@ a:focus-visible {
     none;
 
   transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    background
+      var(--motion-medium)
+      var(--motion-ease),
+    color
+      var(--motion-fast)
+      ease,
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
 .nav-link:hover,
@@ -456,6 +492,12 @@ a:focus-visible {
     translateX(2px);
 }
 
+.nav-link:active {
+  transform:
+    translateX(2px)
+    scale(0.98);
+}
+
 .nav-icon {
   width:
     22px;
@@ -465,6 +507,15 @@ a:focus-visible {
 
   text-align:
     center;
+}
+
+#dashboard,
+#transactions,
+#budgets,
+#recurring-section,
+#insights {
+  scroll-margin-top:
+    24px;
 }
 
 .sidebar-card {
@@ -762,9 +813,18 @@ h1 {
     rgba(36, 79, 63, 0.18);
 
   transition:
-    transform 0.2s ease,
-    filter 0.2s ease,
-    background 0.2s ease;
+    transform
+      var(--motion-medium)
+      var(--motion-ease),
+    filter
+      var(--motion-fast)
+      ease,
+    background
+      var(--motion-fast)
+      ease,
+    box-shadow
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
 .dark-theme .primary-button {
@@ -782,7 +842,12 @@ h1 {
 
 .primary-button:active {
   transform:
-    translateY(0);
+    translateY(1px)
+    scale(0.98);
+
+  box-shadow:
+    0 5px 14px
+    rgba(36, 79, 63, 0.14);
 }
 
 .secondary-button {
@@ -807,9 +872,15 @@ h1 {
     700;
 
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
+    background
+      var(--motion-fast)
+      ease,
+    border-color
+      var(--motion-fast)
+      ease,
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
 .secondary-button:hover {
@@ -849,9 +920,15 @@ h1 {
     1.3rem;
 
   transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    background
+      var(--motion-fast)
+      ease,
+    color
+      var(--motion-fast)
+      ease,
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
 .icon-button:hover {
@@ -895,8 +972,12 @@ h1 {
     800;
 
   transition:
-    transform 0.2s ease,
-    filter 0.2s ease;
+    transform
+      var(--motion-medium)
+      var(--motion-ease),
+    filter
+      var(--motion-fast)
+      ease;
 }
 
 .danger-button:hover {
@@ -905,6 +986,35 @@ h1 {
 
   filter:
     brightness(0.96);
+}
+
+.text-button,
+.hero-link-button,
+.status-action,
+.status-close {
+  transition:
+    color
+      var(--motion-fast)
+      ease,
+    opacity
+      var(--motion-fast)
+      ease,
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
+}
+
+.secondary-button:active,
+.icon-button:active,
+.danger-button:active,
+.small-action-button:active,
+.status-action:active,
+.status-close:active,
+.text-button:active,
+.hero-link-button:active {
+  transform:
+    translateY(1px)
+    scale(0.97);
 }
 
 /* Balance hero */
@@ -2575,6 +2685,17 @@ h1 {
 
   backdrop-filter:
     blur(8px);
+
+  opacity:
+    1;
+
+  transition:
+    opacity
+      var(--motion-medium)
+      var(--motion-ease),
+    backdrop-filter
+      var(--motion-medium)
+      var(--motion-ease);
 }
 
 .modal-backdrop.hidden {
@@ -2612,8 +2733,24 @@ h1 {
     0 35px 90px
     rgba(16, 34, 25, 0.3);
 
-  animation:
-    modal-in 0.2s ease;
+  opacity:
+    1;
+
+  transform:
+    translateY(0)
+    scale(1);
+
+  transition:
+    opacity
+      var(--motion-medium)
+      var(--motion-ease),
+    transform
+      var(--motion-medium)
+      var(--motion-ease);
+
+  will-change:
+    opacity,
+    transform;
 }
 
 .settings-modal {
@@ -2632,24 +2769,26 @@ h1 {
     );
 }
 
-@keyframes modal-in {
-  from {
-    opacity:
-      0;
+.modal-backdrop.is-opening,
+.modal-backdrop.is-closing {
+  opacity:
+    0;
 
-    transform:
-      translateY(10px)
-      scale(0.98);
-  }
+  backdrop-filter:
+    blur(0);
 
-  to {
-    opacity:
-      1;
+  pointer-events:
+    none;
+}
 
-    transform:
-      translateY(0)
-      scale(1);
-  }
+.modal-backdrop.is-opening .modal,
+.modal-backdrop.is-closing .modal {
+  opacity:
+    0;
+
+  transform:
+    translateY(14px)
+    scale(0.98);
 }
 
 .modal-header {
@@ -2846,6 +2985,35 @@ h1 {
 .danger-section {
   border-color:
     rgba(210, 100, 90, 0.25);
+}
+
+.transaction-item,
+.budget-item,
+.recurring-item,
+.category-row {
+  animation:
+    content-enter
+    var(--motion-slow)
+    var(--motion-ease)
+    backwards;
+}
+
+@keyframes content-enter {
+  from {
+    opacity:
+      0;
+
+    transform:
+      translateY(8px);
+  }
+
+  to {
+    opacity:
+      1;
+
+    transform:
+      translateY(0);
+  }
 }
 
 /* Responsive layout */
@@ -3175,5 +3343,28 @@ h1 {
   .status-banner {
     align-items:
       flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior:
+      auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior:
+      auto !important;
+
+    animation-duration:
+      0.01ms !important;
+
+    animation-iteration-count:
+      1 !important;
+
+    transition-duration:
+      0.01ms !important;
   }
 }
