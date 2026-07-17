@@ -1,7 +1,7 @@
 "use strict";
 
 const CACHE_VERSION =
-  "v12";
+  "v13";
 
 const STATIC_CACHE =
   `cbgrid-static-${CACHE_VERSION}`;
