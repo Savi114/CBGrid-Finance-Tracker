@@ -3904,7 +3904,7 @@ setupConnectivityStatus();
         -280,
         Math.min(
           280,
-          wheelDistance,
+          wheelDistance * 1.75,
         ),
       );
 
