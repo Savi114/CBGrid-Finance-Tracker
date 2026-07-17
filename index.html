@@ -974,6 +974,44 @@
             ></select>
           </div>
 
+          <section
+            class="budget-category-manager"
+            aria-labelledby="budget-category-manager-title"
+          >
+            <div>
+              <h3 id="budget-category-manager-title">
+                Custom categories
+              </h3>
+
+              <p>
+                Create or remove categories while setting up your budget.
+              </p>
+            </div>
+
+            <div class="inline-form">
+              <input
+                id="new-category"
+                type="text"
+                maxlength="30"
+                placeholder="New category"
+                autocomplete="off"
+              />
+
+              <button
+                class="secondary-button"
+                id="add-category"
+                type="button"
+              >
+                Add
+              </button>
+            </div>
+
+            <div
+              id="category-chips"
+              class="chip-list"
+            ></div>
+          </section>
+
           <div class="form-group form-spacing">
             <label for="budget-limit">
               Monthly limit
@@ -1117,36 +1155,95 @@
           <section class="settings-section">
             <div>
               <h3>
-                Custom categories
+                Appearance, privacy and alerts
               </h3>
 
               <p>
-                Add categories for transactions and budgets.
+                Choose how CBGrid looks, moves, and displays your financial information.
               </p>
             </div>
 
-            <div class="inline-form">
-              <input
-                id="new-category"
-                type="text"
-                maxlength="30"
-                placeholder="New category"
-                autocomplete="off"
-              />
+            <div class="preference-grid">
+              <div class="form-group">
+                <label for="theme-preference">
+                  Theme
+                </label>
 
-              <button
-                class="secondary-button"
-                id="add-category"
-                type="button"
-              >
-                Add
-              </button>
+                <select id="theme-preference">
+                  <option value="system">
+                    Follow system
+                  </option>
+
+                  <option value="light">
+                    Light
+                  </option>
+
+                  <option value="dark">
+                    Dark
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="layout-density">
+                  Layout density
+                </label>
+
+                <select id="layout-density">
+                  <option value="comfortable">
+                    Comfortable
+                  </option>
+
+                  <option value="compact">
+                    Compact
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="budget-warning-threshold">
+                  Budget warning percentage
+                </label>
+
+                <input
+                  id="budget-warning-threshold"
+                  type="number"
+                  min="50"
+                  max="95"
+                  step="5"
+                  value="80"
+                  inputmode="numeric"
+                />
+
+                <small class="field-help">
+                  Budgets change to warning status at this percentage.
+                </small>
+              </div>
             </div>
 
-            <div
-              id="category-chips"
-              class="chip-list"
-            ></div>
+            <div class="preference-toggles">
+              <label class="checkbox-label preference-toggle">
+                <input
+                  id="reduce-motion"
+                  type="checkbox"
+                />
+
+                <span>
+                  Reduce interface motion
+                </span>
+              </label>
+
+              <label class="checkbox-label preference-toggle">
+                <input
+                  id="hide-balances"
+                  type="checkbox"
+                />
+
+                <span>
+                  Hide balances when CBGrid opens
+                </span>
+              </label>
+            </div>
           </section>
 
           <section class="settings-section">
@@ -1232,7 +1329,7 @@
 
           <div class="modal-actions">
             <span class="version-label">
-              CBGrid v1.1
+              CBGrid v1.2
             </span>
 
             <button
