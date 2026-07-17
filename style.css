@@ -1744,3 +1744,10 @@ button:active:not(:disabled) {
     scroll-behavior: auto !important;
   }
 }
+
+.summary-card,
+.panel {
+  background: var(--surface-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
