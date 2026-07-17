@@ -3793,12 +3793,6 @@ registerServiceWorker();
 setupInstallPrompt();
 setupConnectivityStatus();
 
-/*
- * Optional desktop mouse-wheel smoothing.
- *
- * This section does not modify CBGrid's transactions, buttons,
- * icons, currency symbols, storage, or rendering functions.
- */
 (() => {
   const prefersReducedMotion =
     window.matchMedia(
