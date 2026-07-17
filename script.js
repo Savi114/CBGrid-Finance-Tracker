@@ -3826,7 +3826,7 @@ setupConnectivityStatus();
       scrollElement.scrollTop;
 
     scrollElement.scrollTop +=
-      remainingDistance * 0.38;
+      remainingDistance * 0.22;
 
     if (
       Math.abs(
@@ -3883,7 +3883,7 @@ setupConnectivityStatus();
        */
       if (
         event.deltaMode === 0 &&
-        Math.abs(event.deltaY) < 12
+        Math.abs(event.deltaY) < 4
       ) {
         return;
       }
@@ -3901,9 +3901,9 @@ setupConnectivityStatus();
       }
 
       wheelDistance = Math.max(
-        -160,
+        -280,
         Math.min(
-          160,
+          280,
           wheelDistance,
         ),
       );
