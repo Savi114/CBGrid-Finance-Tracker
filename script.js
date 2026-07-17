@@ -3826,7 +3826,7 @@ setupConnectivityStatus();
       scrollElement.scrollTop;
 
     scrollElement.scrollTop +=
-      remainingDistance * 0.18;
+      remainingDistance * 0.38;
 
     if (
       Math.abs(
