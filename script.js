@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 
 const STORAGE_KEYS = {
   transactions: "cbgrid-transactions",
@@ -10,6 +10,11 @@ const STORAGE_KEYS = {
   theme: "cbgrid-theme",
   currency: "cbgrid-currency",
   categories: "cbgrid-categories",
+  layoutDensity: "cbgrid-layout-density",
+  reduceMotion: "cbgrid-reduce-motion",
+  hideBalances: "cbgrid-hide-balances",
+  budgetWarningThreshold:
+    "cbgrid-budget-warning-threshold",
 };
 
 const LEGACY_STORAGE_KEYS = {
@@ -950,8 +955,12 @@ function resetBudgetForm() {
   elements.budgetCategory.value =
     categories[0] || "Other";
 
+  elements.newCategory.value = "";
+
   elements.budgetError.textContent =
     "";
+
+  renderCategoryChips();
 }
 
 function openNewBudgetModal() {
@@ -1042,7 +1051,6 @@ function openEditRecurringModal(id) {
     elements.recurringModal,
   );
 }
-
 function handleTransactionSubmit(
   event,
 ) {
@@ -1942,6 +1950,23 @@ function renderCategoryBreakdown() {
 function renderBudgets() {
   const currentMonth = getCurrentMonth();
 
+  const savedWarningThreshold =
+    Number(
+      localStorage.getItem(
+        STORAGE_KEYS
+          .budgetWarningThreshold,
+      ),
+    );
+
+  const warningThreshold =
+    Number.isFinite(
+      savedWarningThreshold,
+    ) &&
+    savedWarningThreshold >= 50 &&
+    savedWarningThreshold <= 95
+      ? savedWarningThreshold
+      : 80;
+
   const currentMonthExpenses =
     transactions.filter(
       (transaction) =>
@@ -2036,7 +2061,9 @@ function renderBudgets() {
 
     if (percentage >= 100) {
       statusClass = "over-budget";
-    } else if (percentage >= 80) {
+    } else if (
+      percentage >= warningThreshold
+    ) {
       statusClass = "near-budget";
     }
 
@@ -2175,7 +2202,6 @@ function renderBudgets() {
       );
     });
 }
-
 function renderRecurringRules() {
   elements.recurringList.innerHTML =
     "";
@@ -2714,10 +2740,33 @@ function exportFullBackup() {
       theme:
         localStorage.getItem(
           STORAGE_KEYS.theme,
-        ) || "light",
+        ) || "system",
 
       currency: selectedCurrency,
       categories,
+
+      layoutDensity:
+        localStorage.getItem(
+          STORAGE_KEYS.layoutDensity,
+        ) || "comfortable",
+
+      reduceMotion:
+        localStorage.getItem(
+          STORAGE_KEYS.reduceMotion,
+        ) === "true",
+
+      hideBalances:
+        localStorage.getItem(
+          STORAGE_KEYS.hideBalances,
+        ) === "true",
+
+      budgetWarningThreshold:
+        Number(
+          localStorage.getItem(
+            STORAGE_KEYS
+              .budgetWarningThreshold,
+          ),
+        ) || 80,
     },
   };
 
@@ -2809,17 +2858,74 @@ async function restoreFullBackup(
         : "EUR";
 
     const restoredTheme =
-      backup.data.theme === "dark"
-        ? "dark"
-        : "light";
+      [
+        "system",
+        "light",
+        "dark",
+      ].includes(
+        backup.data.theme,
+      )
+        ? backup.data.theme
+        : "system";
+
+    const restoredDensity =
+      backup.data.layoutDensity ===
+        "compact"
+        ? "compact"
+        : "comfortable";
+
+    const restoredWarning =
+      Number(
+        backup.data
+          .budgetWarningThreshold,
+      );
+
+    const validRestoredWarning =
+      Number.isFinite(
+        restoredWarning,
+      ) &&
+      restoredWarning >= 50 &&
+      restoredWarning <= 95
+        ? restoredWarning
+        : 80;
 
     localStorage.setItem(
       STORAGE_KEYS.theme,
       restoredTheme,
     );
 
+    localStorage.setItem(
+      STORAGE_KEYS.layoutDensity,
+      restoredDensity,
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS.reduceMotion,
+      String(
+        backup.data.reduceMotion ===
+          true,
+      ),
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS.hideBalances,
+      String(
+        backup.data.hideBalances ===
+          true,
+      ),
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS
+        .budgetWarningThreshold,
+      String(
+        validRestoredWarning,
+      ),
+    );
+
     saveAllData();
     loadTheme();
+    window.applyCBGridPreferences?.();
     populateCategorySelects();
     populateBudgetSelects();
     updateCurrencyElements();
@@ -2964,26 +3070,31 @@ function addCategoryIfMissing(
 
 function addCustomCategory() {
   const categoryName =
-    elements.newCategory.value.trim();
+    elements.newCategory.value
+      .trim()
+      .slice(0, 30);
 
   if (
     !addCategoryIfMissing(
       categoryName,
     )
   ) {
-    elements.settingsError.textContent =
+    elements.budgetError.textContent =
       "Enter a unique category name.";
 
     return;
   }
 
   elements.newCategory.value = "";
-  elements.settingsError.textContent =
+  elements.budgetError.textContent =
     "";
 
   saveAllData();
   populateCategorySelects();
   renderCategoryChips();
+
+  elements.budgetCategory.value =
+    categoryName;
 
   showStatus("Category added.");
 }
@@ -3119,6 +3230,7 @@ function resetAllData() {
 
   saveAllData();
   loadTheme();
+  window.applyCBGridPreferences?.();
   populateCategorySelects();
   populateBudgetSelects();
   updateCurrencyElements();
@@ -3254,15 +3366,23 @@ function generateRecurringTransactions() {
     saveAllData();
   }
 }
-
 function loadTheme() {
   const savedTheme =
     localStorage.getItem(
       STORAGE_KEYS.theme,
-    );
+    ) || "system";
+
+  const systemUsesDark =
+    window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
 
   const darkTheme =
-    savedTheme === "dark";
+    savedTheme === "dark" ||
+    (
+      savedTheme === "system" &&
+      systemUsesDark
+    );
 
   document.body.classList.toggle(
     "dark-theme",
@@ -3792,3 +3912,228 @@ renderDashboard();
 registerServiceWorker();
 setupInstallPrompt();
 setupConnectivityStatus();
+
+(() => {
+  const themePreference =
+    document.getElementById(
+      "theme-preference",
+    );
+
+  const layoutDensity =
+    document.getElementById(
+      "layout-density",
+    );
+
+  const reduceMotion =
+    document.getElementById(
+      "reduce-motion",
+    );
+
+  const hideBalances =
+    document.getElementById(
+      "hide-balances",
+    );
+
+  const budgetWarningThreshold =
+    document.getElementById(
+      "budget-warning-threshold",
+    );
+
+  if (
+    !themePreference ||
+    !layoutDensity ||
+    !reduceMotion ||
+    !hideBalances ||
+    !budgetWarningThreshold
+  ) {
+    return;
+  }
+
+  function getStoredTheme() {
+    const savedTheme =
+      localStorage.getItem(
+        STORAGE_KEYS.theme,
+      );
+
+    return [
+      "system",
+      "light",
+      "dark",
+    ].includes(savedTheme)
+      ? savedTheme
+      : "system";
+  }
+
+  function getStoredDensity() {
+    return (
+      localStorage.getItem(
+        STORAGE_KEYS.layoutDensity,
+      ) === "compact"
+        ? "compact"
+        : "comfortable"
+    );
+  }
+
+  function getStoredWarning() {
+    const savedValue =
+      Number(
+        localStorage.getItem(
+          STORAGE_KEYS
+            .budgetWarningThreshold,
+        ),
+      );
+
+    return (
+      Number.isFinite(savedValue) &&
+      savedValue >= 50 &&
+      savedValue <= 95
+        ? savedValue
+        : 80
+    );
+  }
+
+  function loadPreferenceControls() {
+    themePreference.value =
+      getStoredTheme();
+
+    layoutDensity.value =
+      getStoredDensity();
+
+    reduceMotion.checked =
+      localStorage.getItem(
+        STORAGE_KEYS.reduceMotion,
+      ) === "true";
+
+    hideBalances.checked =
+      localStorage.getItem(
+        STORAGE_KEYS.hideBalances,
+      ) === "true";
+
+    budgetWarningThreshold.value =
+      String(
+        getStoredWarning(),
+      );
+  }
+
+  function applyPreferences() {
+    loadTheme();
+
+    document.body.classList.toggle(
+      "compact-layout",
+      getStoredDensity() ===
+        "compact",
+    );
+
+    document.documentElement
+      .classList.toggle(
+        "reduce-motion",
+        localStorage.getItem(
+          STORAGE_KEYS.reduceMotion,
+        ) === "true",
+      );
+
+    document.body.classList.toggle(
+      "balances-hidden",
+      localStorage.getItem(
+        STORAGE_KEYS.hideBalances,
+      ) === "true",
+    );
+  }
+
+  function savePreferences() {
+    const threshold =
+      Math.min(
+        95,
+        Math.max(
+          50,
+          Number(
+            budgetWarningThreshold
+              .value,
+          ) || 80,
+        ),
+      );
+
+    localStorage.setItem(
+      STORAGE_KEYS.theme,
+      themePreference.value,
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS.layoutDensity,
+      layoutDensity.value,
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS.reduceMotion,
+      String(
+        reduceMotion.checked,
+      ),
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS.hideBalances,
+      String(
+        hideBalances.checked,
+      ),
+    );
+
+    localStorage.setItem(
+      STORAGE_KEYS
+        .budgetWarningThreshold,
+      String(threshold),
+    );
+
+    applyPreferences();
+    renderBudgets();
+  }
+
+  elements.settingsButton
+    .addEventListener(
+      "click",
+      loadPreferenceControls,
+    );
+
+  elements.changeBalanceButton
+    .addEventListener(
+      "click",
+      loadPreferenceControls,
+    );
+
+  elements.settingsForm
+    .addEventListener(
+      "submit",
+      savePreferences,
+    );
+
+  elements.themeButton
+    .addEventListener(
+      "click",
+      () => {
+        loadPreferenceControls();
+        applyPreferences();
+      },
+    );
+
+  const systemTheme =
+    window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    );
+
+  systemTheme.addEventListener?.(
+    "change",
+    () => {
+      if (
+        getStoredTheme() ===
+        "system"
+      ) {
+        loadTheme();
+      }
+    },
+  );
+
+  window.applyCBGridPreferences =
+    applyPreferences;
+
+  loadPreferenceControls();
+  applyPreferences();
+})();
